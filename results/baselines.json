@@ -1,0 +1,242 @@
+{
+  "rows": [
+    {
+      "method": "v0: original Finagic",
+      "trained_on": "none",
+      "train_clean": -0.03011453450259675,
+      "val_clean": -0.022154218109790236,
+      "holdout_clean": -0.00822973903785977,
+      "train_leaky": -0.06037603623553878,
+      "val_leaky": -0.10671463476804395,
+      "holdout_leaky": -0.11807414701518913
+    },
+    {
+      "method": "v1: bugs fixed",
+      "trained_on": "none",
+      "train_clean": -0.033682125938260775,
+      "val_clean": 0.015699645834198844,
+      "holdout_clean": -0.060039854732652505,
+      "train_leaky": -0.11733748349070083,
+      "val_leaky": -0.12486561616727461,
+      "holdout_leaky": -0.21312167091916004
+    },
+    {
+      "method": "optimizer trained on clean",
+      "trained_on": "clean",
+      "practice": 0.07792414698148302,
+      "train_clean": 0.07792414698148302,
+      "val_clean": 0.04456437736371299,
+      "holdout_clean": 0.01845613045928379
+    },
+    {
+      "method": "optimizer trained on leaky",
+      "trained_on": "leaky",
+      "practice": 0.18642900814302266,
+      "train_clean": 0.034670992402728494,
+      "val_clean": 0.0012423080236961443,
+      "holdout_clean": 0.039279170877610646
+    }
+  ],
+  "formulas": {
+    "v1": {
+      "ev_ebitda": -0.04,
+      "ps": -0.04,
+      "pcf": -0.04,
+      "pb": -0.04,
+      "bvps": 0.04,
+      "roa": 0.06666666666666667,
+      "roe": 0.06666666666666667,
+      "roce": 0.06666666666666667,
+      "gross_margin": 0.05,
+      "op_margin": 0.05,
+      "pretax_margin": 0.05,
+      "net_margin": 0.05,
+      "current_ratio": 0.03333333333333333,
+      "quick_ratio": 0.03333333333333333,
+      "ccc": -0.03333333333333333,
+      "dpo": 0.03333333333333333,
+      "dio": -0.03333333333333333,
+      "dso": -0.03333333333333333,
+      "de": -0.06666666666666667,
+      "cf_coverage": 0.06666666666666667,
+      "ltd_cap": -0.06666666666666667
+    },
+    "optimizer_clean": {
+      "ev_ebitda": -1.0,
+      "ps": -0.5,
+      "pcf": -3.0,
+      "pb": 3.0,
+      "bvps": -3.0,
+      "roa": -0.5,
+      "roce": -0.5,
+      "gross_margin": 2.0,
+      "pretax_margin": -3.0,
+      "net_margin": -0.5,
+      "current_ratio": 0.5,
+      "quick_ratio": -1.0,
+      "ccc": 1.0,
+      "dpo": -1.0,
+      "dso": -1.0,
+      "de": -3.0,
+      "cf_coverage": 0.5,
+      "ltd_cap": 1.0
+    },
+    "optimizer_leaky": {
+      "ev_ebitda": 3.0,
+      "ps": 2.0,
+      "pcf": 3.0,
+      "pb": 3.0,
+      "bvps": -2.0,
+      "roa": 2.0,
+      "roe": 0.5,
+      "roce": -2.0,
+      "gross_margin": -1.0,
+      "op_margin": -2.0,
+      "pretax_margin": 2.0,
+      "net_margin": -3.0,
+      "current_ratio": -2.0,
+      "quick_ratio": 1.0,
+      "ccc": -0.5,
+      "dpo": -3.0,
+      "dio": 1.0,
+      "dso": -2.0,
+      "de": 3.0,
+      "cf_coverage": -0.5,
+      "ltd_cap": -3.0
+    }
+  },
+  "ablation": [
+    {
+      "leak": "timing",
+      "practice": 0.07210389090748019,
+      "train_clean": 0.06988516101713078,
+      "val_clean": 0.035365103743970394,
+      "holdout_clean": 0.005950182911732958,
+      "formula": {
+        "ev_ebitda": -1.0,
+        "ps": -1.0,
+        "pcf": -3.0,
+        "pb": 3.0,
+        "bvps": -3.0,
+        "roe": -3.0,
+        "roce": -1.0,
+        "gross_margin": 1.0,
+        "op_margin": 0.5,
+        "pretax_margin": -3.0,
+        "net_margin": -1.0,
+        "current_ratio": -3.0,
+        "quick_ratio": -1.0,
+        "ccc": -0.5,
+        "dpo": -3.0,
+        "dio": 0.5,
+        "dso": 0.5,
+        "de": -2.0,
+        "cf_coverage": 2.0,
+        "ltd_cap": -2.0
+      }
+    },
+    {
+      "leak": "restated",
+      "practice": 0.07730011046320821,
+      "train_clean": 0.06734255219150025,
+      "val_clean": 0.020899488066788763,
+      "holdout_clean": 0.03932671254086825,
+      "formula": {
+        "ev_ebitda": -0.5,
+        "pcf": -0.5,
+        "pb": -1.0,
+        "bvps": -3.0,
+        "roa": 1.0,
+        "roe": 0.5,
+        "roce": 0.5,
+        "gross_margin": 0.5,
+        "op_margin": -3.0,
+        "pretax_margin": -3.0,
+        "net_margin": -0.5,
+        "current_ratio": 0.5,
+        "quick_ratio": -2.0,
+        "ccc": -1.0,
+        "dpo": -3.0,
+        "dio": 0.5,
+        "dso": -1.0,
+        "de": 1.0,
+        "cf_coverage": -1.0,
+        "ltd_cap": -1.0
+      }
+    },
+    {
+      "leak": "future_price",
+      "practice": 0.1399774377932772,
+      "train_clean": 0.037844411164163226,
+      "val_clean": -0.008680023505197218,
+      "holdout_clean": 0.015356768885006507,
+      "formula": {
+        "ev_ebitda": 3.0,
+        "ps": 2.0,
+        "pcf": 3.0,
+        "pb": 3.0,
+        "bvps": -3.0,
+        "roa": -2.0,
+        "roe": 2.0,
+        "roce": -2.0,
+        "gross_margin": -1.0,
+        "op_margin": -0.5,
+        "pretax_margin": 1.0,
+        "net_margin": -2.0,
+        "current_ratio": -3.0,
+        "quick_ratio": 1.0,
+        "ccc": -2.0,
+        "dpo": -3.0,
+        "dio": 2.0,
+        "dso": -1.0,
+        "de": -2.0,
+        "cf_coverage": -3.0,
+        "ltd_cap": -2.0
+      }
+    },
+    {
+      "leak": "survivors",
+      "practice": 0.085999272094341,
+      "train_clean": 0.05906897431850666,
+      "val_clean": -0.002694956162789216,
+      "holdout_clean": 0.02594769065035507,
+      "formula": {
+        "ev_ebitda": -1.0,
+        "ps": 2.0,
+        "pcf": 3.0,
+        "pb": -0.5,
+        "bvps": -3.0,
+        "roa": -3.0,
+        "roe": 3.0,
+        "roce": -2.0,
+        "gross_margin": 3.0,
+        "op_margin": -3.0,
+        "pretax_margin": 1.0,
+        "net_margin": -3.0,
+        "current_ratio": 2.0,
+        "quick_ratio": -3.0,
+        "ccc": -1.0,
+        "dpo": -3.0,
+        "dio": 2.0,
+        "dso": 1.0,
+        "de": 1.0,
+        "cf_coverage": -0.5,
+        "ltd_cap": 3.0
+      }
+    }
+  ],
+  "splits": {
+    "train": [
+      201101,
+      201812
+    ],
+    "val": [
+      201901,
+      202012
+    ],
+    "holdout": [
+      202201,
+      202509
+    ]
+  }
+}

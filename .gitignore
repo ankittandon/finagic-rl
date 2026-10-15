@@ -1,0 +1,19 @@
+# Raw downloads stay local and out of the evaluator upload (Eval Protocol honours .gitignore)
+data/
+.venv/
+venv/
+__pycache__/
+*.pyc
+.env
+.pytest_cache/
+.eval_protocol/
+
+# run artifacts (regenerable; keep the write-up + chart)
+results/*.log
+results/*.prev.jsonl
+results/rft_*_metrics.jsonl
+results/rft_*_result.json
+deepmath_serverless_*/
+
+
+.DS_Store

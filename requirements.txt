@@ -1,0 +1,4 @@
+# Installed in the Fireworks evaluator sandbox AND locally. Keep it small.
+eval-protocol==0.3.32
+mcp<2          # eval-protocol 0.3.32 fails to import with mcp 2.x
+numpy>=1.26

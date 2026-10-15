@@ -1,0 +1,7 @@
+-r requirements.txt
+pandas>=2.2
+requests>=2.31
+yfinance>=0.2.50
+matplotlib>=3.8
+openai>=1.78
+pytest>=8

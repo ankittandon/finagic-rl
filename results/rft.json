@@ -1,0 +1,29 @@
+{
+  "_how_to_fill": "After each RFT job finishes, copy these from the job page in the Fireworks dashboard (Fine-tuning > Reinforcement). Rewards are 0-1; 0.5 = as good as the v1 formula. Leave null if unknown.",
+  "rft-clean": {
+    "job": null,
+    "base_model": null,
+    "epochs": null,
+    "rollouts_per_prompt": null,
+    "train_reward_first": null,
+    "train_reward_final": null,
+    "eval_reward_first": null,
+    "eval_reward_final": null,
+    "wall_clock_minutes": null,
+    "cost_usd": 0,
+    "notes": ""
+  },
+  "rft-leaky": {
+    "job": null,
+    "base_model": null,
+    "epochs": null,
+    "rollouts_per_prompt": null,
+    "train_reward_first": null,
+    "train_reward_final": null,
+    "eval_reward_first": null,
+    "eval_reward_final": null,
+    "wall_clock_minutes": null,
+    "cost_usd": 0,
+    "notes": ""
+  }
+}

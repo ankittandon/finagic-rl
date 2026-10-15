@@ -1,0 +1,59 @@
+{
+  "built": "2026-10-14",
+  "n_stocks": 397,
+  "sectors": [
+    "Communication Services",
+    "Consumer Discretionary",
+    "Consumer Staples",
+    "Energy",
+    "Health Care",
+    "Industrials",
+    "Information Technology",
+    "Materials",
+    "Utilities"
+  ],
+  "metrics": [
+    "ev_ebitda",
+    "ps",
+    "pcf",
+    "pb",
+    "bvps",
+    "roa",
+    "roe",
+    "roce",
+    "gross_margin",
+    "op_margin",
+    "pretax_margin",
+    "net_margin",
+    "current_ratio",
+    "quick_ratio",
+    "ccc",
+    "dpo",
+    "dio",
+    "dso",
+    "de",
+    "cf_coverage",
+    "ltd_cap"
+  ],
+  "min_mcap": 300000000.0,
+  "peers_k": 10,
+  "leaks": {
+    "clean": {
+      "timing": false,
+      "restated": false,
+      "future_price": false,
+      "survivors": false
+    },
+    "leaky": {
+      "timing": true,
+      "restated": true,
+      "future_price": true,
+      "survivors": true
+    }
+  },
+  "coverage": {
+    "clean": 0.6791031748011073,
+    "leaky": 0.7751078634311794
+  },
+  "synthetic": false
+}
