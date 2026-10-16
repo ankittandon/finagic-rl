@@ -50,52 +50,44 @@ doesn't magically *discover* one. The whole ladder cost about a dollar of traini
 
 Ordered by how much it slowed the work.
 
-**1. No single model is available for both inference and serverless training — this made the whole
-analysis awkward.** The only serverless-*trainable* model (`muse-glimmer-30b`) is not
-serverless-*inferenceable*, and the ~20 serverless-inference models aren't serverless-RL-trainable.
-Consequences: (a) to compare prompting vs SFT vs RL we had to hill-climb the prompt on a *different*
-model (`qwen3p8-max`) and train `muse-glimmer` — so the rungs aren't apples-to-apples and had to be
-caveated; (b) we couldn't measure a trained adapter with a normal inference call — every eval had to
-go through an in-session training-sampler run, which is slow and couples "measure the model" to "spin
-up a training run." **Ask:** expose at least one model that is both serverless-inferenceable and
-serverless-trainable (SFT + RL), so the entire ladder runs on one model and every rung is evaluated
-the same way.
+**1. No single model does both inference and serverless training.** `muse-glimmer-30b` is the only
+serverless-trainable model but isn't inferenceable; the inferenceable models aren't trainable. Two
+costs: the prompting rung had to run on a *different* model (`qwen3p8-max`) than SFT/RL, so
+comparisons aren't apples-to-apples; and a trained adapter isn't callable, so every eval ran as a
+throwaway training-sampler job — slow, and it ties up the single training slot. **Ask:** expose one
+model that's both inferenceable and serverless-trainable (SFT + RL), so the whole ladder runs on one
+model and every rung is evaluated by plain inference.
 
-**2. Killing a client doesn't release the slot, and there's no way to cancel the orphaned run.** The
-limit is one concurrent serverless run per base model. When we stopped an RL run locally, Fireworks
-kept the single `muse-glimmer` slot locked server-side for 30+ minutes, blocking the next job. We
-found no `firectl`/SDK call to list or cancel active serverless training runs, and the run id isn't
-surfaced to the user — so the only recourse was to wait for the orphan to be reaped. **Ask:** surface
-a run id + a cancel command, and release the slot promptly when the client disconnects. A multi-slot
-or clearer queueing story would also remove most of the serialization pain (every SFT/RL/eval had to
-wait behind the previous one, with a ~10-minute slot-release lag between each).
+**2. Killing a client doesn't free the slot — and there's no way to cancel the orphaned run.** One
+serverless run per base model. After I stopped an RL run locally, Fireworks held the slot for 30+
+minutes, blocking the next job, with no `firectl`/SDK command to list or cancel it and no run id
+surfaced. **Ask:** surface a run id + a cancel command, release the slot on client disconnect, and
+consider more slots / clearer queueing — every SFT/RL/eval serialized behind the last, with a
+~10-min lag.
 
-**3. Rollout sampling got rate-limited mid-run.** During RL, the sampler hit steady `429/503`
-congestion, stretching training to ~10 minutes per step. **Ask:** dedicated/served sampling capacity
-during a training run, or clearer signaling when the sampler is throttling.
+**3. Rollout sampling gets rate-limited mid-run.** During RL, the rollout sampler hit steady
+`429/503` congestion, stretching training to ~10 min/step. **Ask:** dedicated sampling capacity
+during a training run, or at least clear signaling when it's throttling vs. stalled.
 
-**4. No progress signal or ETA once a run starts, and set expectations on convergence.** There's no
-"step X of Y", % complete, ETA, or explicit "checkpoint saved / eval @ step N" event — the only
-visible progress is lines appended to a metrics JSONL, so we ended up polling that file on guessed
-intervals. Separately, as a new user there was no intuition for *how much* training an RL run needs:
-short runs are high-variance (two identical runs landed at 0.34 vs 0.80 on a 48-row eval), and small
-evals badly inflated numbers (a 48-row eval read 72% where the full 400-row holdout was 61%). **Ask:**
-an upfront launch summary (total steps, epochs, eval interval, ETA), per-step progress lines, explicit
-checkpoint/eval events, and docs guidance on typical scale-to-convergence, how many seeds to average,
-and a minimum eval size to trust a number.
+**4. No progress/ETA, and no guidance on convergence or eval size.** A running job gives no "step X
+of Y", %, ETA, or checkpoint/eval events — just lines in a metrics JSONL, so I polled it on guesses.
+And as a new user I had no intuition for how much training an RL run needs: short runs are
+high-variance (two identical runs: 0.34 vs 0.80 on a 48-row eval) and small evals inflate numbers
+(48 rows read 72% where the full 400 was 61%). **Ask:** a launch summary (steps, epochs, eval
+interval, ETA) + per-step progress and checkpoint/eval events; plus docs on typical
+scale-to-convergence, seeds to average, and a minimum trustworthy eval size.
 
-**5. Make the SFT-overfitting fixes first-class, documented recipes.** Plain-label SFT collapsing
-below chance is a common foot-gun, and we confirmed the fixes work dramatically (46% → 62%):
-distilling reasoning traces with rejection sampling, and SFT→RFT warm-start. **Ask:** a cookbook
-recipe + a one-flag "distill-then-reinforce" path, so a failed fine-tune has an obvious, supported
-route to recovery rather than looking like the technique simply doesn't work.
+**5. Make the SFT-collapse fix discoverable.** Plain-label SFT collapsing below chance is a common
+foot-gun; distilling reasoning traces (keeping only correct ones — rejection sampling) + SFT→RFT
+fixed it dramatically (46% → 62%). The pieces exist — the knowledge-distillation tutorial and the
+cookbook `sdft` recipe — but they're framed as "distillation," not as "what to do when your fine-tune
+gets *worse*," and rejection sampling isn't surfaced. **Ask:** link the fix from the SFT docs, surface
+rejection sampling, and offer a one-flag distill-then-reinforce path.
 
-**6. Automate RL-*environment* design, with a cheap "is there signal?" probe up front.** The training
-infra was genuinely easy and cheap (~$1/run); the hard, manual part was designing a *trainable*
-environment — we went through several task formulations by hand before RL learned anything. A
-system that scaffolds the reward/action-space/dataset from a task description and auto-diagnoses
-trainability (reward variance for GRPO, real out-of-sample signal, headroom above the base model,
-reward dynamic range) would turn RL from an expert craft into something anyone can point at a
-verifiable-reward problem. A 5-minute logistic-regression **signal-ceiling check** saved us from
-over-reading a flashy number — building that probe into the platform would set expectations and
-prevent wasted runs before a user ever spends on RL.
+**6. Automate RL-*environment* design, with a cheap "is there signal?" probe first.** Running RL was
+easy and cheap (~$1/run); the hard, manual part was designing a *trainable* environment — I went
+through several task formulations by hand before RL learned anything. **Ask:** from a task
+description, scaffold the reward/data and auto-diagnose trainability (reward variance for GRPO, real
+out-of-sample signal, headroom above the base model) — like auto eval-design, but for RL gyms — and
+run a cheap signal-ceiling probe up front (a 5-min logistic regression told us the ceiling was ~62%
+and saved a lot of over-reading), so users know a problem is learnable before they spend.
