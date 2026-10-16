@@ -1,0 +1,12 @@
+{
+  "train": {
+    "n": 6801,
+    "pos_rate": 0.491,
+    "momentum_acc": 0.657
+  },
+  "holdout": {
+    "n": 5082,
+    "pos_rate": 0.494,
+    "momentum_acc": 0.611
+  }
+}

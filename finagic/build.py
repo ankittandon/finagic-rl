@@ -126,6 +126,12 @@ def compute_metrics(F: np.ndarray, mcap: np.ndarray, shares: np.ndarray) -> np.n
         dso = g["ar"] / pos(rev) * 365
         dio = g["inventory"] / pos(cogs) * 365
         dpo = g["ap"] / pos(cogs) * 365
+
+        def _tg(x, h=12):  # trailing 1-yr growth; needs a positive base, else NaN
+            out = np.full_like(x, np.nan)
+            out[h:] = x[h:] / np.where(x[:-h] > 0, x[:-h], np.nan) - 1
+            return out
+
         m = {
             "ev_ebitda": ev / pos(ebitda),
             "ps": mcap / pos(rev),
@@ -148,6 +154,9 @@ def compute_metrics(F: np.ndarray, mcap: np.ndarray, shares: np.ndarray) -> np.n
             "de": debt / eq,
             "cf_coverage": g["ocf"] / pos(debt),
             "ltd_cap": g["ltd"] / pos(g["ltd"] + eq),
+            "tg_rev": _tg(rev),
+            "tg_gp": _tg(gp),
+            "tg_ocf": _tg(g["ocf"]),
         }
     X = np.stack([m[k] for k in KEYS], axis=-1)
     X[~np.isfinite(X)] = np.nan
@@ -209,7 +218,8 @@ def build_env(uni: pd.DataFrame, filings: list[list[dict]], prc: dict, months: n
     valid = in_index & enough & (mcap >= MIN_MCAP)
     sector_ids = pd.Categorical(uni["sector"]).codes.astype(np.int8)
     P, P0 = finagic_points(X, mcap, valid, sector_ids)
-    return {"P": P, "P0": P0, "valid": valid, "X": X, "mcap": mcap}
+    return {"P": P, "P0": P0, "valid": valid, "X": X, "mcap": mcap,
+            "rev": F[..., FIELDS.index("revenue")]}
 
 
 def forward_returns(adj: np.ndarray, h: int = 12) -> np.ndarray:
@@ -217,6 +227,52 @@ def forward_returns(adj: np.ndarray, h: int = 12) -> np.ndarray:
     with np.errstate(divide="ignore", invalid="ignore"):
         R[:-h] = adj[h:] / adj[:-h] - 1
     return R
+
+
+def forward_growth(x: np.ndarray, h: int = 12) -> np.ndarray:
+    """Realized growth over the next h months: x[t+h]/x[t]-1 (needs a positive base)."""
+    G = np.full_like(x, np.nan)
+    with np.errstate(divide="ignore", invalid="ignore"):
+        G[:-h] = x[h:] / np.where(x[:-h] > 0, x[:-h], np.nan) - 1
+    return G
+
+
+def sector_demean(G: np.ndarray, sector: np.ndarray, valid: np.ndarray, min_n: int = 6) -> np.ndarray:
+    """Subtract each month's within-sector median over valid members; NaN elsewhere.
+    This strips sector tailwinds so the target isolates company-specific growth."""
+    out = np.full_like(G, np.nan)
+    for t in range(G.shape[0]):
+        for g in np.unique(sector):
+            m = valid[t] & (sector == g) & np.isfinite(G[t])
+            if int(m.sum()) >= min_n:
+                out[t, m] = G[t, m] - np.median(G[t, m])
+    return out
+
+
+def trailing_growth(x: np.ndarray, h: int = 12) -> np.ndarray:
+    """Realized growth over the PREVIOUS h months: x[t]/x[t-h]-1 (needs a positive base)."""
+    TG = np.full_like(x, np.nan)
+    with np.errstate(divide="ignore", invalid="ignore"):
+        TG[h:] = x[h:] / np.where(x[:-h] > 0, x[:-h], np.nan) - 1
+    return TG
+
+
+def residualize(y: np.ndarray, x_list: list[np.ndarray], valid: np.ndarray, min_n: int = 20) -> np.ndarray:
+    """Per month: OLS residual of y on [1, *x_list] across valid names, i.e. remove the
+    linear part explained by the x features. Here it strips the momentum factor
+    (trailing growth) from forward growth, leaving the harder-to-predict residual."""
+    out = np.full_like(y, np.nan)
+    for t in range(y.shape[0]):
+        finite_x = np.all(np.stack([np.isfinite(x[t]) for x in x_list]), axis=0)
+        ok = valid[t] & np.isfinite(y[t]) & finite_x
+        n = int(ok.sum())
+        if n < min_n:
+            continue
+        Y = y[t, ok].astype(float)
+        X = np.column_stack([np.ones(n)] + [x[t, ok].astype(float) for x in x_list])
+        beta, *_ = np.linalg.lstsq(X, Y, rcond=None)
+        out[t, ok] = Y - X @ beta
+    return out
 
 
 def build_all(constituents_csv: Path, sec_dir: Path, prices_csv: Path, out_npz: Path,
@@ -241,6 +297,24 @@ def build_all(constituents_csv: Path, sec_dir: Path, prices_csv: Path, out_npz: 
     has_fwd[:-12] = True
     envs = {"clean": build_env(uni, filings, prc, months, CLEAN),
             "leaky": build_env(uni, filings, prc, months, LEAKY)}
+
+    # Growth target: next-12m revenue growth from point-in-time (clean) revenue,
+    # sector-demeaned. Realized truth, used only as the reward label.
+    sector_ids = pd.Categorical(uni["sector"]).codes.astype(np.int8)
+    F_clean, _ = fundamentals_matrix(filings, months, CLEAN)
+    rev_clean = F_clean[..., FIELDS.index("revenue")]
+    gp_clean = np.where(np.isnan(F_clean[..., FIELDS.index("gross_profit")]),
+                        rev_clean - F_clean[..., FIELDS.index("cogs")],
+                        F_clean[..., FIELDS.index("gross_profit")])
+    ocf_clean = F_clean[..., FIELDS.index("ocf")]
+    # Target = next-12m revenue growth with the MOMENTUM factor residualized out
+    # (trailing revenue/gross-profit/cash-flow growth), then sector-demeaned. What
+    # remains is growth NOT explained by recent momentum -> restores RL headroom.
+    G_fwd = forward_growth(rev_clean)
+    tg = [trailing_growth(x) for x in (rev_clean, gp_clean, ocf_clean)]
+    Gres = residualize(G_fwd, tg, envs["clean"]["valid"])
+    Grel = sector_demean(Gres, sector_ids, envs["clean"]["valid"])
+    print(f"growth target (residualized): {np.isfinite(Grel).sum()} valid labels")
     sector_names = sorted(uni["sector"].unique())
     meta = {
         "built": date.today().isoformat(), "n_stocks": len(tickers), "sectors": sector_names,
@@ -250,8 +324,8 @@ def build_all(constituents_csv: Path, sec_dir: Path, prices_csv: Path, out_npz: 
     }
     out_npz.parent.mkdir(parents=True, exist_ok=True)
     np.savez_compressed(
-        out_npz, months=months, tickers=np.array(tickers), sector=pd.Categorical(uni["sector"]).codes.astype(np.int8),
-        R=R.astype(np.float32), has_fwd=has_fwd,
+        out_npz, months=months, tickers=np.array(tickers), sector=sector_ids,
+        R=R.astype(np.float32), Grel=Grel.astype(np.float32), has_fwd=has_fwd,
         P_clean=envs["clean"]["P"].astype(np.float16), P0_clean=envs["clean"]["P0"].astype(np.float16),
         valid_clean=envs["clean"]["valid"],
         P_leaky=envs["leaky"]["P"].astype(np.float16), P0_leaky=envs["leaky"]["P0"].astype(np.float16),

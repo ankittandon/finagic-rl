@@ -1,5 +1,5 @@
 {
-  "built": "2026-10-14",
+  "built": "2026-10-15",
   "n_stocks": 397,
   "sectors": [
     "Communication Services",
@@ -33,7 +33,10 @@
     "dso",
     "de",
     "cf_coverage",
-    "ltd_cap"
+    "ltd_cap",
+    "tg_rev",
+    "tg_gp",
+    "tg_ocf"
   ],
   "min_mcap": 300000000.0,
   "peers_k": 10,
@@ -52,8 +55,8 @@
     }
   },
   "coverage": {
-    "clean": 0.6791031748011073,
-    "leaky": 0.7751078634311794
+    "clean": 0.6887547696835175,
+    "leaky": 0.7850836720951692
   },
   "synthetic": false
 }

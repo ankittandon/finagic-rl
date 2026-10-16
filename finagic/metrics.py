@@ -32,12 +32,16 @@ METRICS = [
     ("de",            "Debt / Equity",               "risk"),
     ("cf_coverage",   "Operating cash flow / Debt",  "risk"),
     ("ltd_cap",       "Long-term debt / Capitalization", "risk"),
+    # trailing growth / momentum (persistence signal for predicting FUTURE growth)
+    ("tg_rev",        "Trailing 1-yr revenue growth",        "growth"),
+    ("tg_gp",         "Trailing 1-yr gross-profit growth",   "growth"),
+    ("tg_ocf",        "Trailing 1-yr operating cash-flow growth", "growth"),
 ]
 
 KEYS = [m[0] for m in METRICS]
 LABELS = {m[0]: m[1] for m in METRICS}
 CATEGORY = {m[0]: m[2] for m in METRICS}
-CATEGORIES = ["valuation", "performance", "profitability", "capital_management", "risk"]
+CATEGORIES = ["valuation", "performance", "profitability", "capital_management", "risk", "growth"]
 VALUATION = {"ev_ebitda", "ps", "pcf", "pb", "bvps"}
 
 V1_DIRECTIONS = {
@@ -46,6 +50,7 @@ V1_DIRECTIONS = {
     "gross_margin": +1, "op_margin": +1, "pretax_margin": +1, "net_margin": +1,
     "current_ratio": +1, "quick_ratio": +1, "ccc": -1, "dpo": +1, "dio": -1, "dso": -1,
     "de": -1, "cf_coverage": +1, "ltd_cap": -1,
+    "tg_rev": +1, "tg_gp": +1, "tg_ocf": +1,
 }
 
 # As coded in the 2021 finagic_compute.py: EV/EBITDA and CCC were scored "higher is better".

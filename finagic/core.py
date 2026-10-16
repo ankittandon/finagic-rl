@@ -211,3 +211,93 @@ def reward_for(panel: dict, env: str, start_yyyymm: int, formula: dict, n_months
         "penalty": penalty,
         "reason": "",
     }
+
+
+# ---------------------------------------------------------------- growth reward (rank-IC)
+GROWTH_IC_SCALE = 0.12   # wider so the reward doesn't saturate near 1.0 on small ICs,
+#                          keeping within-group reward variance (and gradient) alive
+
+
+def _ranks(x: np.ndarray) -> np.ndarray:
+    """Average ranks (ties shared), for Spearman correlation."""
+    order = np.argsort(x, kind="stable")
+    r = np.empty(len(x), dtype=float)
+    r[order] = np.arange(len(x), dtype=float)
+    xs = x[order]
+    i = 0
+    while i < len(x):
+        j = i
+        while j + 1 < len(x) and xs[j + 1] == xs[i]:
+            j += 1
+        if j > i:
+            r[order[i:j + 1]] = (i + j) / 2.0
+        i = j + 1
+    return r
+
+
+def growth_ic(score: np.ndarray, G: np.ndarray, valid: np.ndarray, min_n: int = 12) -> np.ndarray:
+    """Per month: Spearman rank correlation between the formula's score and realized
+    sector-demeaned growth, across the valid cross-section. One number per month."""
+    out = np.full(score.shape[0], np.nan)
+    for i in range(score.shape[0]):
+        ok = valid[i] & ~np.isnan(score[i]) & np.isfinite(G[i])
+        if int(ok.sum()) < min_n:
+            continue
+        rs, rg = _ranks(score[i, ok]), _ranks(G[i, ok])
+        if rs.std() == 0 or rg.std() == 0:
+            continue
+        out[i] = float(np.corrcoef(rs, rg)[0, 1])
+    return out
+
+
+def reward_for_growth(panel: dict, env: str, start_yyyymm: int, formula: dict, n_months: int = 12) -> dict:
+    """Reward in [0, 1] for predicting peer-relative future growth. 0.5 = no skill
+    (rank-IC 0); higher IC -> higher reward. Same concentration penalty as reward_for."""
+    idx = window_idx(panel, start_yyyymm, n_months)
+    score = score_signed(panel[f"P_{env}"], formula, idx)
+    ic = growth_ic(score, panel["Grel"][idx], panel[f"valid_{env}"][idx])
+    good = ic[~np.isnan(ic)]
+    if len(good) == 0:
+        return {"reward": 0.0, "ic": float("nan"), "months": 0, "reason": "no valid months"}
+    mean_ic = float(good.mean())
+    r = 0.5 + 0.5 * math.tanh(mean_ic / GROWTH_IC_SCALE)
+    conc = concentration(formula)
+    penalty = 0.25 * max(0.0, conc - CONCENTRATION_FREE) / (1 - CONCENTRATION_FREE)
+    return {
+        "reward": float(max(0.0, min(1.0, r - penalty))),
+        "ic": mean_ic,
+        "months": int(len(good)),
+        "concentration": conc,
+        "penalty": penalty,
+        "reason": "",
+    }
+
+
+# ---------------------------------------------------------------- pointwise yes/no reward
+_YESNO_RE = re.compile(r"answer\s*[:\-]?\s*(yes|no)\b", re.I)
+
+
+def parse_yesno(text: str):
+    """The model's yes/no answer as a bool, or None if not found."""
+    if not text:
+        return None
+    if "</think>" in text:
+        text = text.split("</think>")[-1]
+    m = list(_YESNO_RE.finditer(text))
+    if m:
+        return m[-1].group(1).lower() == "yes"
+    toks = re.findall(r"\b(yes|no)\b", text, re.I)   # fallback: last bare yes/no
+    if toks:
+        return toks[-1].lower() == "yes"
+    return None
+
+
+def grade_pointwise(text: str, label: int, format_floor: float = 0.1) -> dict:
+    """Reward for the yes/no growth-direction task. Correct = 1.0; well-formed but
+    wrong = format_floor (a floor that prevents format/coherence collapse);
+    unparseable = 0.0."""
+    ans = parse_yesno(text)
+    if ans is None:
+        return {"reward": 0.0, "pred": None, "correct": None}
+    correct = (ans == bool(label))
+    return {"reward": 1.0 if correct else format_floor, "pred": int(ans), "correct": bool(correct)}

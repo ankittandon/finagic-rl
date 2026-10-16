@@ -32,8 +32,9 @@ A formula is a set of signed weights between -3 and 3:
 - 0 or omitted means the metric is ignored.
 The score is the weighted average of the (flipped where negative) points.
 
-Goal: within each peer group, companies with higher scores should earn higher total returns
-over the next 12 months than companies with lower scores.
+Goal: within each peer group, companies with higher scores should have HIGHER fundamental
+growth (revenue growth) over the next 12 months than their peers. In other words, rank
+companies by their future peer-relative growth.
 
 Metrics (key: description):
 {_metric_table()}
@@ -44,9 +45,10 @@ The current formula weights every category equally and uses these signs:
 Rules: at least 3 non-zero weights; no single metric should carry more than 40% of the total
 absolute weight (formulas that do are penalised).
 
-Think briefly (under 120 words) about which fundamentals tend to separate future winners from
-losers among peers, then give your formula as ONE JSON object on the last line, mapping metric
-keys to signed weights, for example {{"roe": 2, "ps": -1, "de": -1}}."""
+Think briefly (under 120 words) about which fundamentals tend to predict faster future growth
+among peers (e.g. recent growth momentum, reinvestment, relative profitability), then give your
+formula as ONE JSON object on the last line, mapping metric keys to signed weights, for example
+{{"tg_rev": 2, "op_margin": 1, "de": -1}}."""
 
 
 def messages(no_think: bool = False) -> list[dict]:

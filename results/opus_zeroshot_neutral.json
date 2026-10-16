@@ -1,0 +1,9 @@
+{
+  "model": "claude-opus-5-5",
+  "holdout": "rft/neutral_holdout.jsonl",
+  "n": 400,
+  "accuracy": 0.5425,
+  "acc_parsed": 0.6401,
+  "parse_rate": 0.8475,
+  "api_errors": 61
+}
